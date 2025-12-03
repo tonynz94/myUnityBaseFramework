@@ -20,11 +20,6 @@ public class SceneManagerEx
 
     public BaseScene CurrentScene { get { return GameObject.Find("@Scene").GetComponent<BaseScene>(); } }
 
-    public void Init()
-    {
-
-    }
-
     public void ChangeScene(Define.Scene type)
     {
         CurrentScene.Clear();
@@ -33,11 +28,28 @@ public class SceneManagerEx
         SceneManager.LoadScene(GetSceneName(type));
     }
 
+    public void LoadScene(Define.Scene type, Transform parents = null)
+    {
+        switch (CurrentScene.SceneType)
+        {
+            case Define.Scene.Unknown:
+                Managers.Clear();
+                SceneManager.LoadScene(GetSceneName(type));
+                break;
+        }
+
+    }
+
     string GetSceneName(Define.Scene type)
     {
         string name = System.Enum.GetName(typeof(Define.Scene), type);
         char[] letters = name.ToLower().ToCharArray();
         letters[0] = char.ToUpper(letters[0]);
         return new string(letters);
+    }
+
+        public void Clear()
+    {
+        CurrentScene.Clear();
     }
 }

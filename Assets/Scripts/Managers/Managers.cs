@@ -15,6 +15,7 @@ public class Managers : MonoBehaviour
     public static SceneManagerEx s_Scene = new SceneManagerEx();
     public static DataManager s_Data = new DataManager();
     public static PoolManager s_Pool = new PoolManager();
+    public static ObjectManager s_Object = new ObjectManager();
 
     public static Managers Instance { get { return s_instance; } }
 
@@ -24,6 +25,7 @@ public class Managers : MonoBehaviour
     public static UIManager UI { get { Init(); return s_ui; } }
     public static SceneManagerEx Scene { get { Init(); return s_Scene; } }
     public static PoolManager Pool { get { Init(); return s_Pool; } }
+    public static ObjectManager Object { get { Init(); return s_Object; } }
 
     // Start is called before the first frame update
     void Start()
@@ -37,14 +39,13 @@ public class Managers : MonoBehaviour
         {
             GameObject go = GameObject.Find("@Managers");
             if (go == null)
+            {
                 go = new GameObject() { name = "@Managers" };
+                s_instance = go.AddComponent<Managers>();
+            }
 
-            s_instance = go.AddComponent<Managers>();
             DontDestroyOnLoad(go);
-            s_Resource.Init();
-            s_Scene.Init();
             s_Sound.Init();
-            s_Pool.Init();
             s_Data.Init();
         }
     }
@@ -52,5 +53,14 @@ public class Managers : MonoBehaviour
     private void Update()
     {
        
+    }
+
+    public static void Clear()
+    {
+        Sound.Clear();
+        Scene.Clear();
+        UI.Clear();
+        Pool.Clear();
+        Object.Clear();
     }
 }

@@ -2,126 +2,100 @@ using System.Collections;
 using System.Collections.Generic;
 using Unity.VisualScripting;
 using UnityEngine;
+using UnityEngine.Pool;
+
+class Pool
+{
+    GameObject _prefab;
+    IObjectPool<GameObject> _pool;
+
+    Transform _root;
+    Transform Root
+    {
+        get
+        {
+            if (_root == null)
+            {
+                GameObject go = new GameObject() { name = $"@{_prefab.name}Pool" };
+                _root = go.transform;
+            }
+
+            return _root;
+        }
+    }
+
+    public Pool(GameObject prefab)
+    {
+        _prefab = prefab;
+        _pool = new ObjectPool<GameObject>(OnCreate, OnGet, OnRelease, OnDestroy);
+    }
+
+    public void Push(GameObject go)
+    {
+        if (go.activeSelf)
+            _pool.Release(go);
+    }
+
+    public GameObject Pop()
+    {
+        return _pool.Get();
+    }
+
+    #region Funcs
+    GameObject OnCreate()
+    {
+        GameObject go = GameObject.Instantiate(_prefab);
+        go.transform.SetParent(Root);
+        go.name = _prefab.name;
+        return go;
+    }
+
+    void OnGet(GameObject go)
+    {
+        go.SetActive(true);
+    }
+
+    void OnRelease(GameObject go)
+    {
+        go.SetActive(false);
+    }
+
+    void OnDestroy(GameObject go)
+    {
+        GameObject.Destroy(go);
+    }
+    #endregion
+}
 
 public class PoolManager
 {
-    #region Pool
-    class Pool
+    Dictionary<string, Pool> _pools = new Dictionary<string, Pool>();
+
+    public GameObject Pop(GameObject prefab)
     {
-        public GameObject Original { get; private set; }
-        public Transform Root { get; set; }
+        if (_pools.ContainsKey(prefab.name) == false)
+            CreatePool(prefab);
 
-        Stack<Poolable> _poolStack = new Stack<Poolable>();
-
-        public void Init(GameObject original, int count = 5)
-        {
-            Original = original;
-            Root = new GameObject() { name = $"{original.name}_Root" }.transform;
-
-            for (int i = 0; i < count; i++)
-                Push(Create());
-        }
-
-        Poolable Create()
-        {
-            GameObject go = Object.Instantiate<GameObject>(Original);
-            go.name = Original.name;
-
-            //해당 go에 Poolable 추가 또는 가져 옴
-            return go.GetOrAddComponent<Poolable>();
-        }
-
-        public void Push(Poolable poolable)
-        {
-            if (poolable == null)
-                return;
-
-            poolable.transform.parent = Root;
-            poolable.gameObject.SetActive(false);
-            poolable.isUsing = false;
-
-            _poolStack.Push(poolable);
-        }
-
-        public Poolable Pop(Transform parent)
-        {
-            Poolable poolable;
-
-            if (_poolStack.Count > 0)
-                poolable = _poolStack.Pop();
-
-            else
-                poolable = Create();
-
-            poolable.gameObject.SetActive(true);
-
-            if (parent == null)
-                poolable.transform.parent = Managers.Scene.CurrentScene.transform;
-
-
-            poolable.transform.parent = parent;
-            poolable.isUsing = true;
-
-            return poolable;
-        }
-    }
-    #endregion
-
-    Dictionary<string, Pool> _pool = new Dictionary<string, Pool>();
-    Transform _root;
-
-    public void Init()
-    {
-        if (_root == null)
-        {
-            _root = new GameObject { name = "@Pool_Root" }.transform;
-            Object.DontDestroyOnLoad(_root);
-        }
+        return _pools[prefab.name].Pop();
     }
 
-    public void CreatePool(GameObject original, int count = 5)
+    public bool Push(GameObject go)
     {
-        Pool pool = new Pool();
-        pool.Init(original, count);
+        if (_pools.ContainsKey(go.name) == false)
+            return false;
 
-        pool.Root.parent = _root.transform;
-
-        _pool.Add(original.name, pool);
-    }
-
-    public void Push(Poolable poolable)
-    {
-        string name = poolable.gameObject.name;
-
-        if (_pool.ContainsKey(name) == false)
-        {
-            GameObject.Destroy(poolable.gameObject);
-            return;
-        }
-        _pool[name].Push(poolable);
-    }
-
-    public Poolable Pop(GameObject original, Transform parent = null)
-    {
-        if (_pool.ContainsKey(original.name) == false)
-            CreatePool(original);
-
-        return _pool[original.name].Pop(parent);
-    }
-
-    public GameObject GetOriginal(string name)
-    {
-        if (_pool.ContainsKey(name) == false)
-            return null;
-
-        return _pool[name].Original;
+        _pools[go.name].Push(go);
+        return true;
     }
 
     public void Clear()
     {
-        foreach (Transform child in _root)
-            GameObject.Destroy(child.gameObject);
+        _pools.Clear();
+    }
 
-        _pool.Clear();
+    void CreatePool(GameObject original)
+    {
+        Pool pool = new Pool(original);
+        _pools.Add(original.name, pool);
     }
 }
